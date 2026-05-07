@@ -109,7 +109,7 @@ Todos los comandos retornan código de salida `1` cuando encuentran problemas y 
 ## Estructura del proyecto
  
 ```
-dep-analyzer/
+cli-server/
 ├── src/
 │   ├── main.rs                            # Punto de entrada, parsing de argumentos con clap
 │   ├── config.rs                          # Structs de configuración, carga desde TOML

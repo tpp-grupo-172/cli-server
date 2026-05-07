@@ -42,7 +42,7 @@ fn check_one(func: &Value, file_name: &str, config: &LongParamsConfig) -> Option
 
     if count > config.max_params {
         Some(format!(
-            "[LONG PARAMS]      {:<25} {:<30} ({} parameters)",
+            "[LONG PARAMS]      {:<25} defined in: {:<30} ({} parameters)",
             name, file_name, count
         ))
     } else {

@@ -33,10 +33,12 @@ fn check_one(func: &Value, file_name: &str, config: &LongFunctionConfig) -> Opti
     let start = func.get("line").and_then(|v| v.as_u64())?;
     let end = func.get("end_line").and_then(|v| v.as_u64())?;
     let length = end - start;
+    
+    println!("{} {}", name, length);
 
     if length > config.max_lines as u64 {
         Some(format!(
-            "[LONG FUNCTION]    {:<25} {:<30} ({} lines)",
+            "[LONG FUNCTION]    {:<25} defined in: {:<30} ({} lines)",
             name, file_name, length
         ))
     } else {

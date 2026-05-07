@@ -320,6 +320,6 @@ pub fn run(path: &Path) {
     let unused_functions = find_unused_functions(&functions_in_files, &connections);
 
     for unused_function in unused_functions {
-        println!("{:?} unused", unused_function.function);
+        println!("[UNUSED]           {:<25} defined in {:<30}", unused_function.function, unused_function.file_src);
     }
 }
