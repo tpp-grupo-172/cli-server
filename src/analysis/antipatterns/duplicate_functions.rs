@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use crate::analysis::FileAnalysis;
+use crate::analysis::report::DuplicateViolation;
 use crate::config::DuplicateFunctionsConfig;
 
-pub fn check(analyses: &[FileAnalysis], config: &DuplicateFunctionsConfig) -> Vec<String> {
+pub fn check(analyses: &[FileAnalysis], config: &DuplicateFunctionsConfig) -> Vec<DuplicateViolation> {
     let mut violations = vec![];
     let mut seen: HashMap<String, HashSet<String>> = HashMap::new();
 
@@ -28,7 +29,7 @@ pub fn check(analyses: &[FileAnalysis], config: &DuplicateFunctionsConfig) -> Ve
                 if let Some(methods) = class.get("methods").and_then(|v| v.as_array()) {
                     for method in methods {
                         if let Some(name) = method.get("name").and_then(|v| v.as_str()) {
-                            if !config.ignored_names.iter().any(|n| n == name) {       
+                            if !config.ignored_names.iter().any(|n| n == name) {
                                 seen.entry(name.to_string()).or_default().insert(file_name.clone());
                             }
                         }
@@ -40,13 +41,12 @@ pub fn check(analyses: &[FileAnalysis], config: &DuplicateFunctionsConfig) -> Ve
 
     for (name, files) in &seen {
         if files.len() > 1 {
-            let mut file_list: Vec<&String> = files.iter().collect();
+            let mut file_list: Vec<String> = files.iter().cloned().collect();
             file_list.sort();
-            violations.push(format!(
-                "[DUPLICATE NAME]   {:<25} defined in: {}",
-                name,
-                file_list.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
-            ));
+            violations.push(DuplicateViolation {
+                function: name.clone(),
+                files: file_list,
+            });
         }
     }
 

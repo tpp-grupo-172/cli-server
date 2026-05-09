@@ -5,7 +5,17 @@ edition = "2024"
 
 [dependencies]
 toml = "0.8"
-tree-sitter-test = { path = "../tree-sitter-test" }
+tree-sitter-test = { git = "https://github.com/tpp-grupo-172/tree-sitter-test" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
+
+[[bin]]
+name = "cli-test"
+path = "src/main.rs"
+
+[[bin]]
+name = "mcp-server"
+path = "src/bin/mcp_server.rs"

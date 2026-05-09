@@ -1,18 +1,10 @@
 use serde_json::Value;
 use std::collections::HashSet;
 use crate::analysis::FileAnalysis;
+use crate::analysis::report::GodClassViolation;
 use crate::config::GodClassConfig;
 
-pub struct GodClassResult {
-    pub file_name: String,
-    pub class_name: String,
-    pub score: f32,
-    pub method_count: usize,
-    pub distinct_imports: usize,
-    pub total_lines: usize,
-}
-
-pub fn check(analyses: &[FileAnalysis], config: &GodClassConfig) -> Vec<String> {
+pub fn check(analyses: &[FileAnalysis], config: &GodClassConfig) -> Vec<GodClassViolation> {
     let mut violations = vec![];
 
     for file in analyses {
@@ -25,15 +17,7 @@ pub fn check(analyses: &[FileAnalysis], config: &GodClassConfig) -> Vec<String> 
         if let Some(classes) = file.data.get("classes").and_then(|v| v.as_array()) {
             for class in classes {
                 if let Some(result) = check_one(class, &file_name, config) {
-                    violations.push(format!(
-                        "[GOD CLASS]        {:<25} defined in: {:<30} (score: {:.2}, methods: {}, imports: {}, lines: {})",
-                        result.class_name,
-                        result.file_name,
-                        result.score,
-                        result.method_count,
-                        result.distinct_imports,
-                        result.total_lines,
-                    ));
+                    violations.push(result);
                 }
             }
         }
@@ -42,7 +26,7 @@ pub fn check(analyses: &[FileAnalysis], config: &GodClassConfig) -> Vec<String> 
     violations
 }
 
-fn check_one(class: &Value, file_name: &str, config: &GodClassConfig) -> Option<GodClassResult> {
+fn check_one(class: &Value, file_name: &str, config: &GodClassConfig) -> Option<GodClassViolation> {
     let class_name = class.get("name").and_then(|v| v.as_str())?.to_string();
     let methods = class.get("methods").and_then(|v| v.as_array())?;
 
@@ -50,18 +34,12 @@ fn check_one(class: &Value, file_name: &str, config: &GodClassConfig) -> Option<
     let distinct_imports = count_distinct_imports(methods);
     let total_lines = sum_method_lines(methods);
 
-    let score = compute_score(
-        method_count,
-        distinct_imports,
-        total_lines,
-        &class_name,
-        config,
-    );
+    let score = compute_score(method_count, distinct_imports, total_lines, &class_name, config);
 
     if score >= config.flag_threshold {
-        Some(GodClassResult {
-            file_name: file_name.to_string(),
-            class_name,
+        Some(GodClassViolation {
+            file: file_name.to_string(),
+            class: class_name,
             score,
             method_count,
             distinct_imports,

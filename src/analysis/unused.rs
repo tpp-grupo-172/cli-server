@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::analysis::{FileAnalysis, analyze_project};
+use crate::analysis::report::UnusedFunction;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FunctionsInFiles {
@@ -312,14 +313,23 @@ pub fn find_unused_functions(
         .collect()
 }
 
-pub fn run(path: &Path) {
-    let analyses: Vec<FileAnalysis> = analyze_project(path);
+pub fn collect(path: &Path) -> Vec<UnusedFunction> {
+    let analyses = analyze_project(path);
     let connections = save_function_reference(analyses.clone());
-    let functions_in_files = save_functions(analyses.clone());
+    let functions_in_files = save_functions(analyses);
+    find_unused_functions(&functions_in_files, &connections)
+        .into_iter()
+        .map(|f| UnusedFunction { file: f.file_src, function: f.function, line: f.line })
+        .collect()
+}
 
-    let unused_functions = find_unused_functions(&functions_in_files, &connections);
-
-    for unused_function in unused_functions {
-        println!("[UNUSED]           {:<25} defined in {:<30}", unused_function.function, unused_function.file_src);
+pub fn run(path: &Path, json: bool) {
+    let result = collect(path);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+    } else {
+        for f in &result {
+            println!("[UNUSED]           {:<25} defined in {}", f.function, f.file);
+        }
     }
 }

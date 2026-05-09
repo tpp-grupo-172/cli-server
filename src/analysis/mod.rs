@@ -1,3 +1,4 @@
+pub mod report;
 pub mod unused;
 pub mod antipatterns;
 

@@ -13,6 +13,8 @@ struct Cli {
     command: Commands,
     #[arg(long, global = true)]
     config: Option<PathBuf>,
+    #[arg(long, global = true, help = "Output as JSON instead of human-readable text")]
+    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -55,11 +57,11 @@ fn main() {
     };
 
     match cli.command {
-        Commands::Unused { path } => analysis::unused::run(&path),
-        Commands::Antipatterns { path } => analysis::antipatterns::run(&path, &config),
+        Commands::Unused { path } => analysis::unused::run(&path, cli.json),
+        Commands::Antipatterns { path } => analysis::antipatterns::run(&path, &config, cli.json),
         Commands::All { path } => {
-            analysis::unused::run(&path);
-            analysis::antipatterns::run(&path, &config);
+            analysis::unused::run(&path, cli.json);
+            analysis::antipatterns::run(&path, &config, cli.json);
         }
     }
 }

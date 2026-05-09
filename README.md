@@ -1,127 +1,150 @@
-# CLI-Server
+# cli-test — Static analysis CLI + MCP server
 
-Herramienta de línea de comandos para analizar proyectos de código fuente, en busca de funciones sin usar y antipatrones de diseño. 
+Static analysis tool for Python/JS/TS codebases. Detects unused functions and code antipatterns. Can be used as a CLI or as an MCP server with Claude Desktop.
 
-## Instalación y uso
+## MCP server setup
 
-### Requisitos
+### 1. Install
 
-- [Rust](https://rust-lang.org/tools/install/)
-- Cargo (incluido con Rust)
-- El repositorio tree-sitter-test clonado localmente (referenciado por path en Cargo.toml)
+```bash
+cargo install --git https://github.com/tpp-grupo-172/cli-test --bin mcp-server
+```
 
-### Compilar
+Requires Rust 1.86+. The binary is placed at `~/.cargo/bin/mcp-server`.
+
+### 2. Configure Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (create it if it doesn't exist):
+
+```json
+{
+  "mcpServers": {
+    "code-analyzer": {
+      "command": "/Users/YOUR_USERNAME/.cargo/bin/mcp-server"
+    }
+  }
+}
+```
+
+Replace `YOUR_USERNAME` with your macOS username (run `whoami` if unsure). Then restart Claude Desktop.
+
+### 3. Use in Claude
+
+The server exposes three tools you can ask Claude to use:
+
+| Tool | What it does | Parameter |
+|---|---|---|
+| `find_unused_functions` | Functions defined but never called | `workspace_path` — absolute path to the project root |
+| `find_antipatterns` | Long functions, god classes, long param lists, duplicate names | `workspace_path` |
+| `analyze_workspace` | Both analyses combined | `workspace_path` |
+
+Example prompt: *"Use find_unused_functions on /Users/me/myproject and tell me what to clean up."*
+
+### Verify the server works (optional)
+
+```bash
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}}}\n{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}\n' \
+  | ~/.cargo/bin/mcp-server
+```
+
+You should see a JSON response listing the three tools.
+
+---
+
+## CLI usage
+
+### Instalación y uso
+
+**Requisitos:** [Rust](https://rust-lang.org/tools/install/) 1.86+
 
 ```bash
 cargo build --release
-```
-
-### Ejecutar sobre un proyecto
-
-```bash
 cargo run -- <comando> <directorio-del-proyecto>
 ```
 
 ### Comandos
 
-### `unused` — Funciones sin usar
- 
+#### `unused` — Funciones sin usar
+
 Detecta funciones que están definidas en el proyecto pero nunca son llamadas desde ningún archivo.
- 
+
 ```bash
 cargo run -- unused my-project/
 ```
- 
+
 **Ejemplo de salida:**
 ```
-Unused functions detected:
-  - volume()        main.py:12
-  - hypotenuse()    main.py:8
+[UNUSED]           volume                    defined in /home/user/project/main.py
+[UNUSED]           hypotenuse                defined in /home/user/project/main.py
 ```
- 
-Retorna con código `1` si encuentra funciones sin usar, `0` si no. Útil para CI.
- 
-### `antipatterns` — Detección de antipatrones
- 
-Analiza el proyecto en busca de antipatrones de diseño. Detecta los siguientes:
- 
-#### `[LONG FUNCTION]`
-Funciones cuya longitud supera el umbral configurado (por defecto 30 líneas). La longitud se mide desde la línea de definición hasta la línea de cierre, incluyendo líneas en blanco y comentarios.
- 
-#### `[LONG PARAMS]`
-Funciones con más parámetros de los permitidos (por defecto 5, excluyendo `self` en Python). Indica que una función probablemente hace demasiado o necesita una estructura de datos.
- 
-#### `[DUPLICATE NAME]`
-Funciones con el mismo nombre definidas en múltiples archivos del proyecto. Puede causar confusión sobre cuál se está llamando e indica falta de abstracción. Se ignoran automáticamente nombres comunes como `__init__`, `constructor`, `toString`, etc.
- 
-#### `[GOD CLASS]`
-Clases que probablemente violan el principio de responsabilidad única. La detección usa un sistema de puntuación ponderado basado en:
-- Cantidad de métodos
-- Líneas totales de código en todos los métodos
-- Imports distintos usados en los métodos 
-- Nombre de la clase — si contiene palabras como `Manager`, `Handler`, `Controller`, etc.
 
-Se reporta si el score supera el umbral configurado.
+#### `antipatterns` — Detección de antipatrones
 
- 
 ```bash
 cargo run -- antipatterns my-project/
 ```
- 
+
 **Ejemplo de salida:**
 ```
-[LONG FUNCTION]    compute_everything   defined in: main.py                 (45 lines)
-[LONG PARAMS]      process              defined in: utils.py                (7 parameters)
-[DUPLICATE NAME]   serialize_packet     defined in: node.py, protocol.py
-[GOD CLASS]        Coordinator          defined in: server.py               (score: 0.70, methods: 9, imports: 2, lines: 87)
+[LONG FUNCTION]    compute_everything        /home/user/project/main.py (45 lines)
+[LONG PARAMS]      process                   /home/user/project/utils.py (7 parameters)
+[DUPLICATE NAME]   serialize_packet          defined in: node.py, protocol.py
+[GOD CLASS]        Coordinator               defined in: /home/user/project/server.py (score: 0.70, methods: 9, imports: 2, lines: 87)
 ```
- 
-Retorna con código `1` si encuentra antipatrones, `0` si no encuentra ninguno.
 
-### `all` — Todos los análisis
- 
-Ejecuta `unused` y `antipatterns` en secuencia sobre el mismo proyecto.
- 
+Antipatrones detectados:
+
+- **`[LONG FUNCTION]`** — funciones cuya longitud supera el umbral configurado (default: 30 líneas)
+- **`[LONG PARAMS]`** — funciones con más parámetros de los permitidos (default: 5, excluyendo `self`)
+- **`[DUPLICATE NAME]`** — mismo nombre definido en múltiples archivos (ignora nombres comunes como `__init__`, `constructor`, etc.)
+- **`[GOD CLASS]`** — score ponderado por métodos, imports, líneas y nombre de clase
+
+#### `all` — Todos los análisis
+
 ```bash
 cargo run -- all my-project/
+cargo run -- all my-project/ --json       # salida JSON estructurada
+cargo run -- --config MyConfig.toml all my-project/
 ```
 
-## Configuración
- 
-El CLI busca automáticamente un archivo `Config.toml` en el directorio actual. Si no lo encuentra, usa valores por defecto. También se puede especificar un path explícito:
- 
+Retorna código `1` si encuentra problemas, `0` si el proyecto está limpio. Útil para CI.
+
+### Configuración
+
+El CLI busca `Config.toml` en el directorio actual, o acepta `--config <path>`:
+
+```toml
+[long_function]
+max_lines = 30
+
+[long_params]
+max_params = 5
+
+[god_class]
+flag_threshold = 0.5
+method_count_norm = 8.0
+distinct_imports_norm = 4.0
+total_lines_norm = 150.0
+weight_method_count = 0.50
+weight_distinct_imports = 0.15
+weight_total_lines = 0.30
+weight_name = 0.05
+god_names = ["manager", "coordinator", "handler", "controller", "processor"]
+
+[duplicate_functions]
+ignored_names = ["__init__", "constructor", "run", "main"]
+```
+
+El MCP server siempre usa los valores default hardcodeados (no lee Config.toml).
+
+---
+
+## Build from source
+
 ```bash
-cargo run -- --config New-config.toml antipatterns my-project/
-```
-
-## Uso en CI/CD
- 
-Todos los comandos retornan código de salida `1` cuando encuentran problemas y `0` cuando el proyecto está limpio. Esto permite integrarlos en pipelines de CI:
- 
-```yaml
-- name: Check for antipatterns
-  run: cargo run --release -- antipatterns ./src
- 
-- name: Check for unused functions
-  run: cargo run --release -- unused ./src
-```
-
-## Estructura del proyecto
- 
-```
-cli-server/
-├── src/
-│   ├── main.rs                            # Punto de entrada, parsing de argumentos con clap
-│   ├── config.rs                          # Structs de configuración, carga desde TOML
-│   └── analysis/
-│       ├── mod.rs                         # analyze_project() — recorre el directorio y parsea archivos
-│       ├── unused.rs                      # Detección de funciones sin usar
-│       └── antipatterns/                  # Detección de antipatrones
-│           ├── mod.rs                     
-│           ├── long_function.rs
-│           ├── long_params.rs
-│           ├── duplicate_functions.rs
-│           └── god_class.rs
-├── Config.toml                            # Configuración por defecto (opcional)
-└── Cargo.toml
+git clone https://github.com/tpp-grupo-172/cli-test
+cd cli-test
+cargo build --release
+# CLI:        ./target/release/cli-test
+# MCP server: ./target/release/mcp-server
 ```
