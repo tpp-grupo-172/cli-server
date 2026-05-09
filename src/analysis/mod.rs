@@ -29,7 +29,7 @@ pub fn analyze_project(project_path: &Path) -> Vec<FileAnalysis> {
 
             if path.is_dir() {
                 let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if !name.starts_with('.') && name != "node_modules" && name != "target" {
+                if !name.starts_with('.') && !["node_modules", "target", "out", "dist", "__pycache__"].contains(&name) {
                     dirs.push(path);
                 }
                 continue;
