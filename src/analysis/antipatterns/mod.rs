@@ -14,14 +14,10 @@ pub fn collect(path: &Path, config: &Config) -> AntipatternReport {
     let mut long_params = vec![];
 
     for file in &analyses {
-        let file_name = file.path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
+        let file_path = file.path.display().to_string();
 
-        long_functions.extend(long_function::check(&file.data, &file_name, &config.long_function));
-        long_params.extend(long_params::check(&file.data, &file_name, &config.long_params));
+        long_functions.extend(long_function::check(&file.data, &file_path, &config.long_function));
+        long_params.extend(long_params::check(&file.data, &file_path, &config.long_params));
     }
 
     let duplicates = duplicate_functions::check(&analyses, &config.duplicate_functions);
