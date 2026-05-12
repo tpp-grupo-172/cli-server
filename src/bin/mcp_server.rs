@@ -1,6 +1,6 @@
 use rmcp::{ServerHandler, ServiceExt, model::*, schemars, tool, transport::stdio};
-use cli_test::analysis::{antipatterns, unused, report::AnalysisReport};
-use cli_test::config::Config;
+use cli_server::analysis::{antipatterns, unused, report::AnalysisReport};
+use cli_server::config::Config;
 use std::path::Path;
 
 #[derive(Debug, Clone)]

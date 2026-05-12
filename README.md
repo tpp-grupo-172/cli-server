@@ -1,4 +1,4 @@
-# cli-test — Static analysis CLI + MCP server
+# cli-server — Static analysis CLI + MCP server
 
 Static analysis tool for Python/JS/TS codebases. Detects unused functions and code antipatterns. Can be used as a CLI or as an MCP server with Claude Desktop.
 
@@ -7,7 +7,7 @@ Static analysis tool for Python/JS/TS codebases. Detects unused functions and co
 ### 1. Install
 
 ```bash
-cargo install --git https://github.com/tpp-grupo-172/cli-test --bin mcp-server
+cargo install --git https://github.com/tpp-grupo-172/cli-server --bin mcp-server
 ```
 
 Requires Rust 1.86+. The binary is placed at `~/.cargo/bin/mcp-server`.
@@ -142,9 +142,9 @@ El MCP server siempre usa los valores default hardcodeados (no lee Config.toml).
 ## Build from source
 
 ```bash
-git clone https://github.com/tpp-grupo-172/cli-test
-cd cli-test
+git clone https://github.com/tpp-grupo-172/cli-server
+cd cli-server
 cargo build --release
-# CLI:        ./target/release/cli-test
+# CLI:        ./target/release/cli-server
 # MCP server: ./target/release/mcp-server
 ```

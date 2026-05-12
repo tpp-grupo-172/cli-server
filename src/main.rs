@@ -6,7 +6,7 @@ mod config;
 mod analysis;
 
 #[derive(Parser)]
-#[command(name = "cli-test")]
+#[command(name = "cli-server")]
 #[command(about = "Analyzes dependencies in a code project")]
 struct Cli {
     #[command(subcommand)]

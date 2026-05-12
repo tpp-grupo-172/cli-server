@@ -1,5 +1,5 @@
 [package]
-name = "cli-test"
+name = "cli-server"
 version = "0.1.0"
 edition = "2024"
 
@@ -13,7 +13,7 @@ tokio = { version = "1", features = ["full"] }
 rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
 
 [[bin]]
-name = "cli-test"
+name = "cli-server"
 path = "src/main.rs"
 
 [[bin]]
