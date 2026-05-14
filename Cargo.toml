@@ -2,6 +2,7 @@
 name = "cli-server"
 version = "0.1.0"
 edition = "2024"
+default-run = "cli-server"
 
 [dependencies]
 toml = "0.8"
