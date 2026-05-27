@@ -40,6 +40,9 @@ pub fn analyze_project(project_path: &Path) -> Vec<FileAnalysis> {
                 continue;
             }
 
+            println!("Analyzing file: {}", path.display());
+            println!("Project root: {}", project_path.display());
+
             match run_analysis(&path, &[project_path.to_path_buf()]) {
                 Ok(json_str) => {
                     match serde_json::from_str::<Value>(&json_str) {
