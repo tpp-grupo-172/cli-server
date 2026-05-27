@@ -331,5 +331,7 @@ pub fn run(path: &Path, json: bool) {
         for f in &result {
             println!("[UNUSED]           {:<25} defined in {}", f.function, f.file);
         }
+        std::process::exit(1);
     }
+    std::process::exit(0);
 }
