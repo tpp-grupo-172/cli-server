@@ -26,12 +26,12 @@ pub fn collect(path: &Path, config: &Config) -> AntipatternReport {
     AntipatternReport { long_functions, long_params, duplicates, god_classes }
 }
 
-pub fn run(path: &Path, config: &Config, json: bool) {
+pub fn run(path: &Path, config: &Config, json: bool) -> bool {
     let report = collect(path, config);
 
     if json {
         println!("{}", serde_json::to_string_pretty(&report).unwrap());
-        return;
+        return false;
     }
 
     let mut found = false;
@@ -58,7 +58,7 @@ pub fn run(path: &Path, config: &Config, json: bool) {
 
     if !found {
         println!("No antipatterns detected.");
-        std::process::exit(0);
+        return false
     }
-    std::process::exit(1);
+    return true
 }

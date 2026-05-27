@@ -56,12 +56,22 @@ fn main() {
         }
     };
 
-    match cli.command {
-        Commands::Unused { path } => analysis::unused::run(&path, cli.json),
-        Commands::Antipatterns { path } => analysis::antipatterns::run(&path, &config, cli.json),
-        Commands::All { path } => {
-            analysis::unused::run(&path, cli.json);
-            analysis::antipatterns::run(&path, &config, cli.json);
+    let found = match cli.command {
+        Commands::Unused { path } => {
+            analysis::unused::run(&path, cli.json)
         }
-    }
+
+        Commands::Antipatterns { path } => {
+            analysis::antipatterns::run(&path, &config, cli.json)
+        }
+
+        Commands::All { path } => {
+            let unused = analysis::unused::run(&path, cli.json);
+            let antipatterns = analysis::antipatterns::run(&path, &config, cli.json);
+
+            unused || antipatterns
+        }
+    };
+
+    std::process::exit(if found { 1 } else { 0 });
 }

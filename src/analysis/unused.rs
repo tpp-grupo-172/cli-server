@@ -323,7 +323,7 @@ pub fn collect(path: &Path) -> Vec<UnusedFunction> {
         .collect()
 }
 
-pub fn run(path: &Path, json: bool) {
+pub fn run(path: &Path, json: bool) -> bool {
     let result = collect(path);
     if json {
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -331,7 +331,7 @@ pub fn run(path: &Path, json: bool) {
         for f in &result {
             println!("[UNUSED]           {:<25} defined in {}", f.function, f.file);
         }
-        std::process::exit(1);
+        return true
     }
-    std::process::exit(0);
+    return false
 }
