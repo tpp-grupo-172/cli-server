@@ -73,5 +73,6 @@ fn main() {
         }
     };
 
+    println!("exit code: {}", found);
     std::process::exit(if found { 1 } else { 0 });
 }

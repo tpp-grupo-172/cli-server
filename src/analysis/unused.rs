@@ -328,10 +328,13 @@ pub fn run(path: &Path, json: bool) -> bool {
     if json {
         println!("{}", serde_json::to_string_pretty(&result).unwrap());
     } else {
+        if result.is_empty() {
+            println!("No unused functions detected.");
+            return false
+        }
         for f in &result {
             println!("[UNUSED]           {:<25} defined in {}", f.function, f.file);
         }
-        return true
     }
-    return false
+    return true
 }
