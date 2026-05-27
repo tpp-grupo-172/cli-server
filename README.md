@@ -63,7 +63,7 @@ El servidor expone las siguientes herramientas:
 | `find_antipatterns` | Detecta long functions, long params, duplicate names y god classes | `workspace_path` |
 | `analyze_workspace` | Ejecuta ambos análisis combinados | `workspace_path` |
 
-Example prompt: *"Use find_unused_functions on /Users/me/myproject and tell me what to clean up."*
+Ejemplo de prompt en Claude: *"Use find_unused_functions on /Users/me/myproject and tell me what to clean up."*
 
 ### Verificar funcionamiento del servidor (opcional)
 
