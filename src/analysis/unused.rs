@@ -229,6 +229,7 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
             path_string: &str,
             imports_hashmap: &HashMap<String, String>,
             caller_class: Option<&str>,
+            caller_return_type: Option<&str>,
         | -> Vec<Connections> {
             let mut new_connections = vec![];
 
@@ -250,6 +251,20 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                         if let Some(rt) = resolve_return_type(module, fc_name) {
                             if let Some(rt_file) = find_class_file(&rt) {
                                 call_contexts.insert(fc_name.to_string(), (rt, rt_file));
+                            }
+                        } else {
+                            // fc_name puede ser un constructor de clase: SomeClass(...)
+                            // Los constructores no aparecen en top-level functions, pero el tipo de
+                            // retorno siempre es la clase misma → agregar contexto directamente.
+                            let is_class = values_cloned.get(&PathBuf::from(src_file))
+                                .and_then(|fv| fv.get("classes"))
+                                .and_then(|c| c.as_array())
+                                .map(|classes| classes.iter().any(|c| {
+                                    c.get("name").and_then(|n| n.as_str()) == Some(fc_name)
+                                }))
+                                .unwrap_or(false);
+                            if is_class {
+                                call_contexts.insert(fc_name.to_string(), (fc_name.to_string(), src_file.clone()));
                             }
                         }
                     }
@@ -287,10 +302,16 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                     if let Some((source_type, source_file)) = call_contexts.get(source_fn).cloned() {
                         call_sources.insert(fc_name.to_string(), source_file.clone());
 
+                        // Intentar propagar el return_type para el siguiente eslabón.
+                        // Si no hay anotación, usar el mismo tipo (heurística builder: return self).
                         if let Some(rt) = find_method_return_type(&source_file, &source_type, fc_name) {
                             if let Some(rt_file) = find_class_file(&rt) {
                                 call_contexts.insert(fc_name.to_string(), (rt, rt_file));
+                            } else {
+                                call_contexts.insert(fc_name.to_string(), (source_type.clone(), source_file.clone()));
                             }
+                        } else {
+                            call_contexts.insert(fc_name.to_string(), (source_type.clone(), source_file.clone()));
                         }
                         changed = true;
                     }
@@ -367,23 +388,29 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                             let attr_name = iterable.strip_prefix("self.")
                                 .or_else(|| iterable.strip_prefix("this."));
                             if let Some(attr) = attr_name {
-                                if let Some(collection_type) = self_attr_types.get(attr) {
-                                    let element_type = extract_element_type(collection_type)
+                                let elem_type_from_attr = self_attr_types.get(attr).and_then(|collection_type| {
+                                    extract_element_type(collection_type)
                                         .or_else(|| {
                                             let t = collection_type.trim();
                                             t.strip_prefix("Tuple[").and_then(|s| s.strip_suffix(']'))
                                                 .and_then(|inner| inner.split(',').next())
                                                 .map(|s| s.trim().to_string())
+                                        })
+                                });
+                                // Fallback: inferir desde el return_type del método actual.
+                                // Cubre el caso donde self.attr no tiene tipo declarado pero
+                                // el método devuelve List[X] → los elementos son de tipo X.
+                                let elem_type_from_return = || {
+                                    caller_return_type.and_then(|rt| extract_element_type(rt))
+                                };
+                                if let Some(elem_type) = elem_type_from_attr.or_else(elem_type_from_return) {
+                                    let elem_type = elem_type.as_str();
+                                    if let Some(class_file) = find_class_file(elem_type) {
+                                        new_connections.push(Connections {
+                                            file_src: class_file, file_use: path_string.to_string(),
+                                            line, start_col, end_col, function: name.to_string(),
+                                            class_name: Some(elem_type.to_string()),
                                         });
-                                    if let Some(elem_type) = element_type {
-                                        let elem_type = elem_type.as_str();
-                                        if let Some(class_file) = find_class_file(elem_type) {
-                                            new_connections.push(Connections {
-                                                file_src: class_file, file_use: path_string.to_string(),
-                                                line, start_col, end_col, function: name.to_string(),
-                                                class_name: Some(elem_type.to_string()),
-                                            });
-                                        }
                                     }
                                 }
                             }
@@ -613,6 +640,10 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                         )))
                         .collect();
 
+                    let init_calls = init_method
+                        .get("function_calls").and_then(|v| v.as_array())
+                        .unwrap_or(&empty);
+
                     for lv in init_method.get("local_variables").and_then(|v| v.as_array()).unwrap_or(&empty) {
                         let lv_name = lv.get("name").and_then(|v| v.as_str()).unwrap_or("");
                         let attr = lv_name.strip_prefix("self.").or_else(|| lv_name.strip_prefix("this."));
@@ -620,6 +651,15 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                             if let Some(assigned_id) = lv.get("assigned_identifier").and_then(|v| v.as_str()) {
                                 if let Some(param_type) = param_types.get(assigned_id) {
                                     map.insert(attr.to_string(), param_type.clone());
+                                }
+                            } else if let Some(constructor_name) = lv.get("assigned_from").and_then(|v| v.as_str()) {
+                                // self.attr = SomeClass(...) — inferir tipo del constructor importado
+                                let is_imported = init_calls.iter().any(|fc| {
+                                    fc.get("name").and_then(|v| v.as_str()) == Some(constructor_name)
+                                        && fc.get("import_name").and_then(|v| v.as_str()).is_some()
+                                });
+                                if is_imported {
+                                    map.insert(attr.to_string(), constructor_name.to_string());
                                 }
                             }
                         }
@@ -644,6 +684,10 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                     .and_then(|v| v.as_array())
                     .cloned()
                     .unwrap_or_default();
+                let method_return_type = method
+                    .get("return_type")
+                    .filter(|v| !v.is_null())
+                    .and_then(|v| v.as_str());
 
                 let new_connections = process_function_calls(
                     function_calls,
@@ -654,6 +698,7 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                     &path_string,
                     &imports_hashmap,
                     Some(current_class_name.as_str()),
+                    method_return_type
                 );
 
                 connections.extend(new_connections);
@@ -682,6 +727,11 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                 .cloned()
                 .unwrap_or_default();
 
+            let func_return_type = func
+                .get("return_type")
+                .filter(|v| !v.is_null())
+                .and_then(|v| v.as_str());
+
             let new_connections = process_function_calls(
                 function_calls,
                 &local_variables,
@@ -691,6 +741,7 @@ fn save_function_reference(values: Vec<FileAnalysis>, jedi_types: HashMap<String
                 &path_string,
                 &imports_hashmap,
                 None,
+                func_return_type
             );
 
             connections.extend(new_connections);
