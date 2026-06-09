@@ -855,6 +855,7 @@ dependencies = [
 [[package]]
 name = "tree-sitter-test"
 version = "0.1.0"
+source = "git+https://github.com/tpp-grupo-172/tree-sitter-parser?branch=main#bd2503e0cca0bfceb9480e27d6971a0a9834ad51"
 dependencies = [
  "serde",
  "serde_json",
